@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torch.linalg import diagonal
 
+
 class mha(nn.Module):
     def __init__(self, d_in, d_out, context_len, dropout, num_heads, qkv_bias=False):
         super().__init__()

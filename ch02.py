@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import tiktoken
 
+
 class dataset(Dataset):
     def __init__(self, txt, tokenizer, max_len, stride):
         super().__init__()
