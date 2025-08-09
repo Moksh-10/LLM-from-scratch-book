@@ -72,6 +72,12 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
     return total_loss / num_batches
 
 
+def eval(model, train_loader, val_loader, device, eval_iter):
+    model.eval()
+    with torch.no_grad():
+        train_loss = calc_loss_loader(train_loader, model, device, eval_iter)
+
+
 def train(model, train_loader, val_loader, optimizer, device, num_epochs, eval_freq, eval_iter, start_context, tokenizer):
     train_losses, val_losses, track_tokens_seen = [], [], []
     tokens_seen, global_step = 0, -1
@@ -83,6 +89,12 @@ def train(model, train_loader, val_loader, optimizer, device, num_epochs, eval_f
             optimizer.zero_grad()
             loss = calc_loss_batch(inp_batch, tar_batch, model, device)
             loss.backward()
+            optimizer.step()
+            tokens_seen += inp_batch.numel()
+            global_step += 1
+
+            if global_step % eval_freq == 0:
+                train_loss, val_loss = ev
 
 
 
