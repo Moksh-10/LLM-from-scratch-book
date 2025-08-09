@@ -55,4 +55,35 @@ def calc_loss_batch(inp_batch, tar_batch, model, device):
     return loss
 
 
+def calc_loss_loader(data_loader, model, device, num_batches=None):
+    total_loss = 0.
+    if len(data_loader) == 0:
+        return float("nan")
+    elif num_batches is None:
+        num_batches = len(data_loader)
+    else:
+         num_batches = min(num_batches, len(data_loader))
+    for i, (input_batch, tar_batch) in enumerate(data_loader):
+        if i < num_batches:
+            loss = calc_loss_batch(input_batch, tar_batch, model, device)
+            total_loss += loss.item()
+        else:
+            break
+    return total_loss / num_batches
+
+
+def train(model, train_loader, val_loader, optimizer, device, num_epochs, eval_freq, eval_iter, start_context, tokenizer):
+    train_losses, val_losses, track_tokens_seen = [], [], []
+    tokens_seen, global_step = 0, -1
+
+    for epoch in range(num_epochs):
+        model.train()
+
+        for inp_batch, tar_batch in train_loader:
+            optimizer.zero_grad()
+            loss = calc_loss_batch(inp_batch, tar_batch, model, device)
+            loss.backward()
+
+
+
 
