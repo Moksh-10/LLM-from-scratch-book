@@ -76,6 +76,9 @@ def eval(model, train_loader, val_loader, device, eval_iter):
     model.eval()
     with torch.no_grad():
         train_loss = calc_loss_loader(train_loader, model, device, eval_iter)
+        val_loss = calc_loss_loader(val_loader, model, device, eval_iter)
+    model.train()
+    return train_loss, val_loss
 
 
 def train(model, train_loader, val_loader, optimizer, device, num_epochs, eval_freq, eval_iter, start_context, tokenizer):
@@ -94,7 +97,31 @@ def train(model, train_loader, val_loader, optimizer, device, num_epochs, eval_f
             global_step += 1
 
             if global_step % eval_freq == 0:
-                train_loss, val_loss = ev
+                train_loss, val_loss = eval(model, train_loader, val_loader, device, eval_iter)
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                track_tokens_seen.append(tokens_seen)
+                print(f"Epoch: {epoch + 1} (Step {global_step:06d}): "
+                      f"Train loss: {train_loss:.3f}, Val loss: {val_loss:.3f}")
+        gen_and_print(model, tokenizer, device, start_context)
+    return train_losses, val_losses, track_tokens_seen
+
+
+def gen_and_print(model, tokenizer, device, start_context):
+    model.eval()
+    context_size = model.pos_emb.weight.shape[0]
+    enc = text_to_token_ids(start_context, tokenizer).to(device)
+    with torch.no_grad():
+        token_ids = gen_text(model, enc, max_new_tok=50, context_size=context_size)
+        dec_text = token_ids_tok_text(token_ids, tokenizer)
+        print(dec_text.replace("\n", " "))
+    model.train()
+
+
+def assign(left, right):
+    if left.shape != right.shape:
+        raise ValueError(f"Shape mismatch. Left: {left.shape}, Right: {right.shape}")
+    return nn.Parameter(torch.tensor(right))
 
 
 
