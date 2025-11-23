@@ -124,5 +124,37 @@ def assign(left, right):
     return nn.Parameter(torch.tensor(right))
 
 
+<<<<<<< HEAD
 
 
+=======
+def plot_loss(epochs_seen, tokens_seen, train_losses, val_losses):
+    fig, ax1 = plt.subplot(figsize=(5, 3))
+
+    ax1.plot(epochs_seen, train_losses, label="train loss")
+    ax1.plot(epochs_seen, val_losses, linestyle="-.", label="val loss")
+    ax1.set_xlabel("epochs")
+    ax1.set_ylabel("loss")
+    ax1.legend(loc="upper right")
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax2 = ax1.twiny()
+    ax2.plot(tokens_seen, train_losses, alpha=0)
+    ax2.set_xlabel("Tokens seen")
+
+    fig.tight_layout()
+    plt.savefig("loss-plot.pdf")
+    plt.show()
+
+
+def load_wei_into_gpt(gpt, params):
+    gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params['wpe'])
+    gpt.tok_emb.weight = assign(gpt.tok_emb.weight, params['wte'])
+
+#
+# def download_and_load(model_size, models_dir):
+#
+#
+#
+
+>>>>>>> 7d5623f (some changes)

@@ -2,6 +2,20 @@ from ch03 import mha
 import torch
 from torch import nn
 
+<<<<<<< HEAD
+=======
+GPT_CONFIG_124M = {
+    "vocab_size":50257,
+    "context_length":1024,
+    "emb_dim":768,
+    "n_heads":12,
+    "n_layers":12,
+    "drop_rate":0.1,
+    "bias_":False,
+    "qkv_bias":False
+    }
+
+>>>>>>> 7d5623f (some changes)
 
 class gelu(nn.Module):
     def __init__(self):
@@ -63,7 +77,11 @@ class gm(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.tok_emb = nn.Embedding(cfg["vocab_size"], cfg["emb_dim"])
+<<<<<<< HEAD
         self.pos_emb = nn.Embedding(cfg["context_lenght"], cfg["emb_dim"])
+=======
+        self.pos_emb = nn.Embedding(cfg["context_length"], cfg["emb_dim"])
+>>>>>>> 7d5623f (some changes)
         self.drop_emb = nn.Dropout(cfg["drop_rate"])
         self.tr_l = nn.Sequential(*[trans_f(cfg) for _ in range(cfg["n_layers"])])
         self.fn = ln(cfg["emb_dim"])
@@ -90,3 +108,16 @@ def gen_text(model, idx, max_new_tok, context_size):
         idx_next = torch.argmax(logits, dim=-1, keepdim=True)
         idx = torch.cat((idx, idx_next), dim=1)
     return idx
+<<<<<<< HEAD
+=======
+
+
+model = gm(GPT_CONFIG_124M)
+gg = sum(p.numel() for p in model.parameters())
+print(gg)
+# print(sum(p.numel() for p in model.parameters()) - sum(p.numel() for p in model.out.parameters()))
+# print(sum(p.numel() for p in model.parameters()) - sum(p.numel() for p in model.tr_l.parameters()))
+tt = (gg * 4) / (1024 * 1024)
+print(tt)
+
+>>>>>>> 7d5623f (some changes)
