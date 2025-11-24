@@ -1,3 +1,5 @@
+import requests
+
 from ch04 import gen_text
 import json
 import os
@@ -124,10 +126,6 @@ def assign(left, right):
     return nn.Parameter(torch.tensor(right))
 
 
-<<<<<<< HEAD
-
-
-=======
 def plot_loss(epochs_seen, tokens_seen, train_losses, val_losses):
     fig, ax1 = plt.subplot(figsize=(5, 3))
 
@@ -151,10 +149,157 @@ def load_wei_into_gpt(gpt, params):
     gpt.pos_emb.weight = assign(gpt.pos_emb.weight, params['wpe'])
     gpt.tok_emb.weight = assign(gpt.tok_emb.weight, params['wte'])
 
-#
-# def download_and_load(model_size, models_dir):
-#
-#
-#
+    for b in range(len(params["blocks"])):
+        q_w, k_w, v_w = np.split(
+            (params["blocks"][b]["attn"]["c_attn"])["w"], 3, axis=-1)
+        gpt.trf_blocks[b].att.W_query.weight = assign(
+            gpt.trf_blocks[b].att.W_query.weight, q_w.T)
+        gpt.trf_blocks[b].att.W_key.weight = assign(
+            gpt.trf_blocks[b].att.W_key.weight, k_w.T)
+        gpt.trf_blocks[b].att.W_value.weight = assign(
+            gpt.trf_blocks[b].att.W_value.weight, v_w.T)
 
->>>>>>> 7d5623f (some changes)
+        q_b, k_b, v_b = np.split(
+            (params["blocks"][b]["attn"]["c_attn"])["b"], 3, axis=-1)
+        gpt.trf_blocks[b].att.W_query.bias = assign(
+            gpt.trf_blocks[b].att.W_query.bias, q_b)
+        gpt.trf_blocks[b].att.W_key.bias = assign(
+            gpt.trf_blocks[b].att.W_key.bias, k_b)
+        gpt.trf_blocks[b].att.W_value.bias = assign(
+            gpt.trf_blocks[b].att.W_value.bias, v_b)
+
+        gpt.trf_blocks[b].att.out_proj.weight = assign(
+            gpt.trf_blocks[b].att.out_proj.weight,
+            params["blocks"][b]["attn"]["c_proj"]["w"].T)
+        gpt.trf_blocks[b].att.out_proj.bias = assign(
+            gpt.trf_blocks[b].att.out_proj.bias,
+            params["blocks"][b]["attn"]["c_proj"]["b"])
+
+        gpt.trf_blocks[b].ff.layers[0].weight = assign(
+            gpt.trf_blocks[b].ff.layers[0].weight,
+            params["blocks"][b]["mlp"]["c_fc"]["w"].T)
+        gpt.trf_blocks[b].ff.layers[0].bias = assign(
+            gpt.trf_blocks[b].ff.layers[0].bias,
+            params["blocks"][b]["mlp"]["c_fc"]["b"])
+        gpt.trf_blocks[b].ff.layers[2].weight = assign(
+            gpt.trf_blocks[b].ff.layers[2].weight,
+            params["blocks"][b]["mlp"]["c_proj"]["w"].T)
+        gpt.trf_blocks[b].ff.layers[2].bias = assign(
+            gpt.trf_blocks[b].ff.layers[2].bias,
+            params["blocks"][b]["mlp"]["c_proj"]["b"])
+
+        gpt.trf_blocks[b].norm1.scale = assign(
+            gpt.trf_blocks[b].norm1.scale,
+            params["blocks"][b]["ln_1"]["g"])
+        gpt.trf_blocks[b].norm1.shift = assign(
+            gpt.trf_blocks[b].norm1.shift,
+            params["blocks"][b]["ln_1"]["b"])
+        gpt.trf_blocks[b].norm2.scale = assign(
+            gpt.trf_blocks[b].norm2.scale,
+            params["blocks"][b]["ln_2"]["g"])
+        gpt.trf_blocks[b].norm2.shift = assign(
+            gpt.trf_blocks[b].norm2.shift,
+            params["blocks"][b]["ln_2"]["b"])
+
+    gpt.final_norm.scale = assign(gpt.final_norm.scale, params["g"])
+    gpt.final_norm.shift = assign(gpt.final_norm.shift, params["b"])
+    gpt.out_head.weight = assign(gpt.out_head.weight, params["wte"])
+
+
+def downaload_and_load_gpt2(model_size, models_dir):
+    import tensorflow as tf
+
+    allowed_sizes = ("124M", "355M", "774M", "1558M")
+    if model_size not in allowed_sizes:
+        raise ValueError(f"model size not in {allowed_sizes}")
+
+    model_dir = os.path.join(models_dir, model_size)
+    base_url = "https://openaipublic.blob.core.windows.net/gpt-2/models"
+    backup_base_url = "https://f001.backblazeb2.com/file/LLMs-from-scratch/gpt2"
+    filenames = [
+        "checkpoint", "encoder.json", "hparams.json",
+        "model.ckpt.data-00000-of-00001", "model.ckpt.index",
+        "model.ckpt.meta", "vocab.bpe"
+    ]
+
+    os.makedirs(model_dir, exist_ok=True)
+    for filename in filenames:
+        file_url = os.path.join(base_url, model_size, filename)
+        backup_url = os.path.join(backup_base_url, model_size, filename)
+        file_path = os.path.join(models_dir, filename)
+        download_file(file_url, file_path, backup_url)
+
+        tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
+        settings = json.load(open(os.path.join(model_dir, "hparams.json"), "r", encoding="utf-8"))
+        params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
+
+        return settings, params
+
+
+def download_file(url, destination, backup_url=None):
+    def _attempt_download(download_url):
+        res = requests.get(download_url, stream=True, timeout=60)
+        res.raise_for_status()
+
+        fs = int(res.headers.get("Content-Length", 0))
+
+        if os.path.exists(destination):
+            fs_local = os.path.getsize(destination)
+            if fs and fs == fs_local:
+                print(f"file already exists and is up to date: {destination}")
+                return True
+
+        bs = 1024
+        desc = os.path.basename(download_url)
+        with tqdm(total=fs, unit="iB", unit_scale=True, desc=desc) as progress_bar:
+            with open(destination, "wb") as file:
+                for chunk in res.iter_content(chunk_size=bs):
+                    if chunk:
+                        file.write(chunk)
+                        progress_bar.update(len(chunk))
+
+        return True
+
+    try:
+        if _attempt_download(url):
+            return
+    except requests.exceptions.RequestException:
+        if backup_url is not None:
+            print(f"primary url ({url}) failes. trying with: {backup_url}")
+            try:
+                if _attempt_download(backup_url):
+                    return
+            except requests.exceptions.RequestException:
+                pass
+
+        error_msg = (
+            f"failed with both urls"
+        )
+        print(error_msg)
+    except Exception as e:
+        print(f"error: {e}")
+
+
+def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):
+    import tensorflow as tf
+
+    params = {"blocks": [{} for _ in range(settings["n_layer"])]}
+
+    for name, _ in tf.train.list_variables(ckpt_path):
+        var_array = np.squeeze(tf.train.load_variable(ckpt_path, name))
+
+        var_name_parts = name.split("/")[1:]
+
+        target_dict = params
+        if var_name_parts[0].startswith("h"):
+            layer_no = int(var_name_parts[0][1:])
+            target_dict = params["blocks"][layer_no]
+
+        for key in var_name_parts[1:-1]:
+            target_dict = target_dict.setdefault(key, {})
+
+        last_key = var_name_parts[-1]
+        target_dict[last_key] = var_array
+
+    return params
+
